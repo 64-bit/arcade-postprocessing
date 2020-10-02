@@ -17,7 +17,11 @@ python -m arcade.examples.sprite_bouncing_coins
 import arcade
 import os
 import random
+
 from postprocessing.post_processing_chain import PostProcessingChain
+from postprocessing.effects.vignette.Vignette import Vignette
+from postprocessing.render_target import RenderTarget
+
 SPRITE_SCALING = 0.5
 
 SCREEN_WIDTH = 832
@@ -107,9 +111,24 @@ class MyGame(arcade.Window):
         # Set the background color
         arcade.set_background_color(arcade.color.AMAZON)
 
+        #setup post processing
+        self.setup_post_processing()
+
     def setup_post_processing(self):
         #Create a new post-processing chain, this will automatically resize with anything you render through it
-        self.post_processing = PostProcessingChain(self.ctx)
+        self.post_processing = PostProcessingChain(self.ctx, self.get_size(), False)
+
+        #Allocate and add effects
+
+        
+        self.vignette = Vignette()
+        self.post_processing.add_effect(self.vignette)
+        self.vignette.inner_distance = 0.1
+
+
+
+        size = self.get_size()
+        self.render_target = RenderTarget(self.ctx, size, 'f1')
 
     def on_draw(self):
         """
@@ -119,9 +138,16 @@ class MyGame(arcade.Window):
         # This command has to happen before we start drawing
         arcade.start_render()
 
+        #Draw to a render target instead of the screen
+        self.render_target.bind_as_framebuffer()
+        self.render_target.framebuffer_object.clear(arcade.color.AMAZON)
+
         # Draw all the sprites.
         self.wall_list.draw()
         self.coin_list.draw()
+
+        #Apply the post processing effect chain to the render target, and apply it to the screen
+        self.post_processing.apply_effects(self.render_target.texture, self.ctx.screen)
 
     def on_update(self, delta_time):
         """ Movement and game logic """
