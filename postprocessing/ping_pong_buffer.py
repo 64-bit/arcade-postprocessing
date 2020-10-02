@@ -29,7 +29,9 @@ class PingPongBuffer(RenderTargetPair):
             self._pong_buffer.release()
 
     def flip_buffers(self):
-        pass
+        temp = self._ping_buffer
+        self._ping_buffer = self._pong_buffer
+        self._pong_buffer = temp      
 
     #Implementation for RenderTargetPair
     #Bind the texture side to a given texture index, and bind the render target side as the current drawing target
@@ -40,3 +42,12 @@ class PingPongBuffer(RenderTargetPair):
     #Get the (texture,framebuffer) as a tuple pair for more advanced use cases
     def get_render_target_pair(self):
          return (self._ping_buffer.texture, self._pong_buffer.framebuffer_object)
+
+
+    @property
+    def texture(self):
+        return self._ping_buffer.texture
+
+    @property
+    def framebuffer(self):
+        return self._pong_buffer.framebuffer_object

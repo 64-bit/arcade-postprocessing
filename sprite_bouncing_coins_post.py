@@ -20,7 +20,9 @@ import random
 
 from postprocessing.post_processing_chain import PostProcessingChain
 from postprocessing.effects.vignette.Vignette import Vignette
+from postprocessing.effects.greyscale.greyscale import GreyScale
 from postprocessing.render_target import RenderTarget
+
 
 SPRITE_SCALING = 0.5
 
@@ -121,6 +123,10 @@ class MyGame(arcade.Window):
         #Allocate and add effects
 
         #Not sure about this method of allocating a object / weird implicit factory thing
+
+        self.greyscale = self.post_processing.add_effect(GreyScale)
+        self.greyscale.strength = 0.5
+
         self.vignette = self.post_processing.add_effect(Vignette)
         self.vignette.inner_distance = 0.1
 

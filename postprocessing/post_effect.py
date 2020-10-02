@@ -21,4 +21,9 @@ class PostEffect:
 
     def apply(self, render_target_pair):
          raise NotImplementedError("This method must be implemented by a derrived class")
+
+    #An effect that tonemaps HDR to LDR and marks the end of the HDR side of the post-processing
+    #pipeline should override this and return true
+    def is_tonemapping_effect(self):
+        return False
        

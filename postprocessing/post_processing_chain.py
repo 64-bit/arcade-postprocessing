@@ -26,38 +26,71 @@ class PostProcessingChain:
         
     def apply_effects(self, source_texture , destination_framebuffer = None):
 
+        #Ensure no blend mode is enabled
+        self.context.enable_only()
+
         #TODO:Check resize
+        #self._resize_if_needed(source_texture)
+
 
         #3 cases on how this works, the first 2 being somewhat special cases
-        active_effects = self.count_active_effects()
+        #active_effects = self.count_active_effects()
+    
+        if self.are_any_effects_active():
+            self._apply_effect_chain(source_texture, destination_framebuffer)       
+        else:
+            self._passthrough(source_texture, destination_framebuffer)         
 
-        # #1 - 0 effects enabled, do passthrough
-        if active_effects == 0:
-            self._passthrough(source_texture, destination_framebuffer)
-            return
 
-        # #2 - 1 effect enabled
-        if active_effects == 1:
-            self._single_effect(source_texture, destination_framebuffer)
-            return
 
-        # #3 - 2 or more effects enabled
-        self._multi_effect(source_texture, destination_framebuffer)
+    def _apply_effect_chain(self, source_texture, destination_framebuffer):
 
+        first_effect = self.get_first_active_effect()
+        last_effect = self.get_last_active_effect()
+
+        source_dest_pair = StaticRenderTargetPair(source_texture, destination_framebuffer)
+
+        is_hdr = self.hdr
+
+        for effect in self._effects:
+            if not effect.enabled:
+                continue
+
+            render_target_pair = self._get_render_target_pair_for_effect(effect, first_effect, last_effect, source_texture, destination_framebuffer, is_hdr)
+
+            effect.apply(render_target_pair)
+            if effect.is_tonemapping_effect():
+                is_hdr = False
+
+    def _get_render_target_pair_for_effect(self, effect, first_effect, last_effect, source_texture, destination_framebuffer, is_hdr):
+        
+        target_ping_pong = self._hdr_ping_pong_buffer if self.hdr else self._ldr_ping_pong_buffer
+        target_ping_pong.flip_buffers()
+
+        target_pair = target_ping_pong
+
+        if effect.is_tonemapping_effect():
+            target_pair = StaticRenderTargetPair(target_pair.texture, self._ldr_ping_pong_buffer.framebuffer)
+
+        if effect is first_effect:
+            target_pair = StaticRenderTargetPair(source_texture, target_pair.framebuffer)
+
+        if effect is last_effect:
+            target_pair = StaticRenderTargetPair(target_pair.texture, destination_framebuffer)   
+
+        return target_pair     
+
+    
     def _passthrough(self, source_texture, destination_framebuffer):
         source_texture.texture.use(0)
         destination_framebuffer.use()
         self.fullscreen_quad.render(self.blit_program)
 
-    def _single_effect(self, source_texture, destination_framebuffer):
-        target_pair = StaticRenderTargetPair(source_texture, destination_framebuffer)
-
+    def are_any_effects_active(self):
         for effect in self._effects:
             if effect.enabled:
-                effect.apply(target_pair)
-
-    def _multi_effect(self, source_texture, destination_framebuffer):
-        pass
+                return True
+        return False
 
     def count_active_effects(self):
         active_effects = 0
@@ -65,6 +98,19 @@ class PostProcessingChain:
             if effect.enabled:
                 active_effects += 1
         return active_effects
+
+    def get_first_active_effect(self):
+        for effect in self._effects:
+            if effect.enabled:
+                return effect
+        return None
+    
+    def get_last_active_effect(self):
+        for effect in reversed(self._effects):
+            if effect.enabled:
+                return effect
+        return None
+        
 
     def add_effect(self, effect):
        # if not isinstance(effect, PostEffect):
