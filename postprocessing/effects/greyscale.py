@@ -2,9 +2,12 @@
 import math
 import arcade
 from postprocessing.post_effect import PostEffect
-#import imgui
-#import imgui.core
 
+try:
+    import imgui
+    import imgui.core
+except:
+    pass
 class GreyScale(PostEffect):
 
     def __init__(self, context, window_size):

@@ -19,10 +19,45 @@ import os
 import random
 
 from postprocessing.post_processing_chain import PostProcessingChain
-from postprocessing.effects.Vignette import Vignette
-from postprocessing.effects.greyscale import GreyScale
 from postprocessing.render_target import RenderTarget
 
+from postprocessing.effects.vignette import Vignette
+from postprocessing.effects.greyscale import GreyScale
+from postprocessing.effects.bloom import Bloom
+
+
+from typing import Iterable, Iterator
+from typing import Any
+from typing import TypeVar
+from typing import List
+from typing import Tuple
+from typing import Optional
+from typing import Union
+
+import logging
+import math
+import array
+import time
+
+from PIL import Image
+
+from arcade import Color
+from arcade import Matrix3x3
+from arcade import Sprite
+from arcade import get_distance_between_sprites
+from arcade import are_polygons_intersecting
+from arcade import is_point_in_polygon
+
+from arcade import rotate_point
+from arcade import get_window
+from arcade import Point
+from arcade import gl
+
+import imgui
+import imgui.core
+
+from arcade_imgui import ArcadeRenderer
+from arcade_imgui import ArcadeGLRenderer
 
 SPRITE_SCALING = 0.5
 
@@ -32,6 +67,79 @@ SCREEN_TITLE = "Sprite Bouncing Coins"
 
 MOVEMENT_SPEED = 5
 
+#patch class to allow for additive blending in spritelist.draw
+def draw_additive(self, **kwargs):
+    """
+    Draw this list of sprites.
+
+    :param filter: Optional parameter to set OpenGL filter, such as
+                    `gl.GL_NEAREST` to avoid smoothing.
+    """
+    if len(self.sprite_list) == 0:
+        return
+
+    # What percent of this sprite list moved? Used in guessing spatial hashing
+    self._percent_sprites_moved = self._sprites_moved / len(self.sprite_list) * 100
+    self._sprites_moved = 0
+
+    # Make sure window context exists
+    if self.ctx is None:
+        self.ctx = get_window().ctx
+        # Used in drawing optimization via OpenGL
+        self.program = self.ctx.sprite_list_program_cull
+
+    if self._vao1 is None:
+        self._calculate_sprite_buffer()
+
+    self.ctx.enable(self.ctx.BLEND)
+    self.ctx.blend_func = self.ctx.BLEND_ADDITIVE
+
+    self._texture.use(0)
+
+    if "filter" in kwargs:
+        self._texture.filter = self.ctx.NEAREST, self.ctx.NEAREST
+
+    self.program['Texture'] = self.texture_id
+
+    texture_transform = None
+    if len(self.sprite_list) > 0:
+        # always wrap texture transformations with translations
+        # so that rotate and resize operations act on the texture
+        # center by default
+        texture_transform = Matrix3x3().translate(-0.5, -0.5).multiply(self.sprite_list[0].texture_transform.v).multiply(Matrix3x3().translate(0.5, 0.5).v)
+    else:
+        texture_transform = Matrix3x3()
+    self.program['TextureTransform'] = texture_transform.v
+
+    if not self.is_static:
+        if self._sprite_pos_changed:
+            self._sprite_pos_buf.orphan()
+            self._sprite_pos_buf.write(self._sprite_pos_data)
+            self._sprite_pos_changed = False
+
+        if self._sprite_size_changed:
+            self._sprite_size_buf.orphan()
+            self._sprite_size_buf.write(self._sprite_size_data)
+            self._sprite_size_changed = False
+
+        if self._sprite_angle_changed:
+            self._sprite_angle_buf.orphan()
+            self._sprite_angle_buf.write(self._sprite_angle_data)
+            self._sprite_angle_changed = False
+
+        if self._sprite_color_changed:
+            self._sprite_color_buf.orphan()
+            self._sprite_color_buf.write(self._sprite_color_data)
+            self._sprite_color_changed = False
+
+        if self._sprite_sub_tex_changed:
+            self._sprite_sub_tex_buf.orphan()
+            self._sprite_sub_tex_buf.write(self._sprite_sub_tex_data)
+            self._sprite_sub_tex_changed = False
+
+    self._vao1.render(self.program, mode=self.ctx.POINTS, vertices=len(self.sprite_list))
+
+arcade.SpriteList.draw_additive = draw_additive
 
 class MyGame(arcade.Window):
     """ Main application class. """
@@ -52,6 +160,10 @@ class MyGame(arcade.Window):
         # Sprite lists
         self.coin_list = None
         self.wall_list = None
+
+        # Must create or set the context before instantiating the renderer
+        imgui.create_context()
+        self.renderer = ArcadeRenderer(self)
 
     def setup(self):
         """ Set up the game and initialize the variables. """
@@ -118,11 +230,15 @@ class MyGame(arcade.Window):
 
     def setup_post_processing(self):
         #Create a new post-processing chain, this will automatically resize with anything you render through it
-        self.post_processing = PostProcessingChain(self.ctx, self.get_size(), False)
+        self.post_processing = PostProcessingChain(self.ctx, self.get_size(), True)
 
         #Allocate and add effects
 
         #Not sure about this method of allocating a object / weird implicit factory thing
+
+        self.bloom = self.post_processing.add_effect(Bloom)
+        self.bloom.threshold = 0.9
+        self.bloom.power = 1.0
 
         self.greyscale = self.post_processing.add_effect(GreyScale)
         self.greyscale.strength = 0.5
@@ -131,7 +247,7 @@ class MyGame(arcade.Window):
         self.vignette.inner_distance = 0.1
 
         size = self.get_size()
-        self.render_target = RenderTarget(self.ctx, size, 'f1')
+        self.render_target = RenderTarget(self.ctx, size, 'f2')
 
     def on_draw(self):
         """
@@ -149,8 +265,26 @@ class MyGame(arcade.Window):
         self.wall_list.draw()
         self.coin_list.draw()
 
+        #Draw coin list again additivly for HDR related reasons
+        self.ctx.enable_only(self.ctx.BLEND)
+        self.ctx.blend_func = self.ctx.BLEND_ADDITIVE
+
+        self.coin_list.draw_additive()
+
+
+
         #Apply the post processing effect chain to the render target, and apply it to the screen
         self.post_processing.apply_effects(self.render_target.texture, self.ctx.screen)
+
+        self.draw_gui()
+
+    def draw_gui(self):
+        imgui.new_frame()
+
+        self.post_processing.show_postprocess_ui()
+     
+        imgui.render()
+        self.renderer.render(imgui.get_draw_data())
 
     def on_update(self, delta_time):
         """ Movement and game logic """

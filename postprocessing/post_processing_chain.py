@@ -6,6 +6,8 @@ from postprocessing.static_render_target_pair import StaticRenderTargetPair
 
 class PostProcessingChain:
 
+    has_imgui = True
+
     def __init__(self, context: arcade.gl.context.Context, initial_size, enable_hdr):
         self.context = context
         self._current_size = initial_size
@@ -107,6 +109,20 @@ class PostProcessingChain:
                 return effect
         return None
 
+    def show_postprocess_ui(self):
+        if PostProcessingChain.has_imgui == False:
+            raise TypeError("IMGUI cannot be found")
+
+        imgui.begin("Post-Processing window", False)
+        imgui.text("Post-Processing Stages:")
+        imgui.separator()
+
+        for stage in self._effects:
+            if imgui.collapsing_header(type(stage).__name__, flags=imgui.TREE_NODE_DEFAULT_OPEN)[0]:
+                stage.show_ui()
+
+        imgui.end()
+
     def reset_effects(self):
         self._effects = []
 
@@ -130,3 +146,9 @@ class PostProcessingChain:
         if self._hdr_ping_pong_buffer is not None:
             self._hdr_ping_pong_buffer.release()
             self._hdr_ping_pong_buffer = None
+
+
+try:
+    import imgui
+except ImportError:
+    PostProcessingChain.has_imgui = False
