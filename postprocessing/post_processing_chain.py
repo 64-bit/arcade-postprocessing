@@ -1,4 +1,5 @@
 import arcade
+from postprocessing.render_target import RenderTarget
 from postprocessing.ping_pong_buffer import PingPongBuffer
 from postprocessing.post_effect import PostEffect
 from postprocessing.static_render_target_pair import StaticRenderTargetPair
@@ -15,40 +16,23 @@ class PostProcessingChain:
         self._hdr_ping_pong_buffer = None
 
         self.hdr = enable_hdr
-
-        self.blit_program = context.load_program(
-            vertex_shader="postprocessing/core_shaders/fullscreen_quad.vs",
-            fragment_shader="postprocessing/core_shaders/blit.fs",
-        )
-
-        self.blit_program['t_source'] = 0
-        self.fullscreen_quad = arcade.gl.geometry.quad_2d_fs()
         
     def apply_effects(self, source_texture , destination_framebuffer = None):
 
         #Ensure no blend mode is enabled
         self.context.enable_only()
 
-        #TODO:Check resize
-        #self._resize_if_needed(source_texture)
+        self._resize_if_needed(source_texture)
 
-
-        #3 cases on how this works, the first 2 being somewhat special cases
-        #active_effects = self.count_active_effects()
-    
         if self.are_any_effects_active():
             self._apply_effect_chain(source_texture, destination_framebuffer)       
         else:
             self._passthrough(source_texture, destination_framebuffer)         
 
-
-
     def _apply_effect_chain(self, source_texture, destination_framebuffer):
 
         first_effect = self.get_first_active_effect()
         last_effect = self.get_last_active_effect()
-
-        source_dest_pair = StaticRenderTargetPair(source_texture, destination_framebuffer)
 
         is_hdr = self.hdr
 
@@ -59,6 +43,8 @@ class PostProcessingChain:
             render_target_pair = self._get_render_target_pair_for_effect(effect, first_effect, last_effect, source_texture, destination_framebuffer, is_hdr)
 
             effect.apply(render_target_pair)
+
+            #TODO: how to re-factor this into or out of the method above ?
             if effect.is_tonemapping_effect():
                 is_hdr = False
 
@@ -80,24 +66,19 @@ class PostProcessingChain:
 
         return target_pair     
 
-    
+    def _resize_if_needed(self, source_texture):
+        pass
+
     def _passthrough(self, source_texture, destination_framebuffer):
         source_texture.texture.use(0)
         destination_framebuffer.use()
-        self.fullscreen_quad.render(self.blit_program)
+        RenderTarget.fullscreen_quad.render(RenderTarget.blit_program)
 
     def are_any_effects_active(self):
         for effect in self._effects:
             if effect.enabled:
                 return True
         return False
-
-    def count_active_effects(self):
-        active_effects = 0
-        for effect in self._effects:
-            if effect.enabled:
-                active_effects += 1
-        return active_effects
 
     def get_first_active_effect(self):
         for effect in self._effects:
@@ -113,9 +94,6 @@ class PostProcessingChain:
         
 
     def add_effect(self, effect):
-       # if not isinstance(effect, PostEffect):
-        #    raise TypeError("effect must be derrived from PostEffect")
-
         new_effect = effect(self.context, self._current_size)
         self._effects.append(new_effect)
         return new_effect

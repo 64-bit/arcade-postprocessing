@@ -19,8 +19,8 @@ import os
 import random
 
 from postprocessing.post_processing_chain import PostProcessingChain
-from postprocessing.effects.vignette.Vignette import Vignette
-from postprocessing.effects.greyscale.greyscale import GreyScale
+from postprocessing.effects.Vignette import Vignette
+from postprocessing.effects.greyscale import GreyScale
 from postprocessing.render_target import RenderTarget
 
 

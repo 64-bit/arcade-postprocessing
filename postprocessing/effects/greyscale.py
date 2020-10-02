@@ -12,7 +12,7 @@ class GreyScale(PostEffect):
 
         self.program = context.load_program(
             vertex_shader="postprocessing/core_shaders/fullscreen_quad.vs",
-            fragment_shader="postprocessing/effects/greyscale/greyscale.fs",
+            fragment_shader="postprocessing/effects/shaders/greyscale.fs",
         )
         self.program['t_source'] = 0
 

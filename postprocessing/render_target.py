@@ -2,6 +2,9 @@ import arcade
 
 class RenderTarget:
 
+    fullscreen_quad = None
+    blit_program = None
+
     def __init__(self, context, size, texture_format='f1'):
         self.context = context
         self.texture = None
@@ -10,6 +13,16 @@ class RenderTarget:
         self.texture_format = texture_format
 
         self.resize(size)
+        RenderTarget._init_blit_shaders(context)
+
+    def _init_blit_shaders(context):
+        RenderTarget.blit_program = context.load_program(
+            vertex_shader="postprocessing/core_shaders/fullscreen_quad.vs",
+            fragment_shader="postprocessing/core_shaders/blit.fs",
+        )
+
+        RenderTarget.blit_program['t_source'] = 0
+        RenderTarget.fullscreen_quad = arcade.gl.geometry.quad_2d_fs()
 
     def resize(self, newSize):
         self.release()
@@ -35,6 +48,10 @@ class RenderTarget:
 
     def bind_as_framebuffer(self):
         self.framebuffer_object.use()        
+
+    def blit(self):
+        self.bind_as_texture(0)
+        RenderTarget.fullscreen_quad.render(RenderTarget.blit_program)
 
     def release(self):
         if self.texture is not None:
