@@ -3,11 +3,9 @@ from postprocessing.post_effect import PostEffect
 
 
 class Vignette(PostEffect):
-    def __init__(self):
-        super().__init__()
 
-    def on_add(self, context, window_size):
-        super().on_add(context, window_size)
+    def __init__(self, context, window_size):
+        super().__init__(context, window_size)
 
         self.program = context.load_program(
             vertex_shader="postprocessing/core_shaders/fullscreen_quad.vs",

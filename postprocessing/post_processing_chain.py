@@ -67,10 +67,12 @@ class PostProcessingChain:
         return active_effects
 
     def add_effect(self, effect):
-        if not isinstance(effect, PostEffect):
-            raise TypeError("effect must be derrived from PostEffect")
-        self._effects.append(effect)
-        effect.on_add(self.context, self._current_size)
+       # if not isinstance(effect, PostEffect):
+        #    raise TypeError("effect must be derrived from PostEffect")
+
+        new_effect = effect(self.context, self._current_size)
+        self._effects.append(new_effect)
+        return new_effect
 
     def remove_effect(self, effect):
         self._effects.remove(effect)

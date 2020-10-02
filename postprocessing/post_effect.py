@@ -4,13 +4,12 @@ class PostEffect:
 
     fullscreen_quad = None
 
-    def __init__(self):
+    def __init__(self,context, window_size):
         self.enabled = True
-        PostEffect._init_quad()
-
-    def on_add(self, context, window_size):
         self.context = context
         self.window_size = window_size       
+
+        PostEffect._init_quad()
 
     def _init_quad():
         if PostEffect.fullscreen_quad is None:

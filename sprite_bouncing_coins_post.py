@@ -120,12 +120,9 @@ class MyGame(arcade.Window):
 
         #Allocate and add effects
 
-        
-        self.vignette = Vignette()
-        self.post_processing.add_effect(self.vignette)
+        #Not sure about this method of allocating a object / weird implicit factory thing
+        self.vignette = self.post_processing.add_effect(Vignette)
         self.vignette.inner_distance = 0.1
-
-
 
         size = self.get_size()
         self.render_target = RenderTarget(self.ctx, size, 'f1')
