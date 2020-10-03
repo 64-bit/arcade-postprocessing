@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "1fb84d532de970edcad0c15ce698c5001fe4d2b12694ae35a682206882b7bfc3"
+            "sha256": "a021aa41e460cc6ae2933a95d4f40a3a4a9ab2d652f5f5e348a59f8e4c941a19"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -17,11 +17,8 @@
     },
     "default": {
         "arcade": {
-            "hashes": [
-                "sha256:8957723fc996a0fc2a7d3b070cb3ce0d6e75aaa0a88537da1ac9533d198c26ea"
-            ],
-            "index": "pypi",
-            "version": "==2.4.3"
+            "editable": true,
+            "path": "./../arcade"
         },
         "attrs": {
             "hashes": [

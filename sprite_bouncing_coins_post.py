@@ -26,7 +26,7 @@ from postprocessing.effects.greyscale import GreyScale
 from postprocessing.effects.bloom import Bloom
 from postprocessing.effects.tonemap import Tonemap
 from postprocessing.effects.split_tone import SplitTone
-from postprocessing.effects.good_chromatic_abberation import GoodChromaticAberration
+from postprocessing.effects.good_chromatic_abberation import OkChromaticAberration
 
 
 from typing import Iterable, Iterator
@@ -65,84 +65,10 @@ from arcade_imgui import ArcadeGLRenderer
 SPRITE_SCALING = 0.5
 
 SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 632
+SCREEN_HEIGHT = 1024
 SCREEN_TITLE = "Sprite Bouncing Coins"
 
 MOVEMENT_SPEED = 5
-
-#patch class to allow for additive blending in spritelist.draw
-def draw_additive(self, **kwargs):
-    """
-    Draw this list of sprites.
-
-    :param filter: Optional parameter to set OpenGL filter, such as
-                    `gl.GL_NEAREST` to avoid smoothing.
-    """
-    if len(self.sprite_list) == 0:
-        return
-
-    # What percent of this sprite list moved? Used in guessing spatial hashing
-    self._percent_sprites_moved = self._sprites_moved / len(self.sprite_list) * 100
-    self._sprites_moved = 0
-
-    # Make sure window context exists
-    if self.ctx is None:
-        self.ctx = get_window().ctx
-        # Used in drawing optimization via OpenGL
-        self.program = self.ctx.sprite_list_program_cull
-
-    if self._vao1 is None:
-        self._calculate_sprite_buffer()
-
-    self.ctx.enable(self.ctx.BLEND)
-    self.ctx.blend_func = self.ctx.BLEND_ADDITIVE
-
-    self._texture.use(0)
-
-    if "filter" in kwargs:
-        self._texture.filter = self.ctx.NEAREST, self.ctx.NEAREST
-
-    self.program['Texture'] = self.texture_id
-
-    texture_transform = None
-    if len(self.sprite_list) > 0:
-        # always wrap texture transformations with translations
-        # so that rotate and resize operations act on the texture
-        # center by default
-        texture_transform = Matrix3x3().translate(-0.5, -0.5).multiply(self.sprite_list[0].texture_transform.v).multiply(Matrix3x3().translate(0.5, 0.5).v)
-    else:
-        texture_transform = Matrix3x3()
-    self.program['TextureTransform'] = texture_transform.v
-
-    if not self.is_static:
-        if self._sprite_pos_changed:
-            self._sprite_pos_buf.orphan()
-            self._sprite_pos_buf.write(self._sprite_pos_data)
-            self._sprite_pos_changed = False
-
-        if self._sprite_size_changed:
-            self._sprite_size_buf.orphan()
-            self._sprite_size_buf.write(self._sprite_size_data)
-            self._sprite_size_changed = False
-
-        if self._sprite_angle_changed:
-            self._sprite_angle_buf.orphan()
-            self._sprite_angle_buf.write(self._sprite_angle_data)
-            self._sprite_angle_changed = False
-
-        if self._sprite_color_changed:
-            self._sprite_color_buf.orphan()
-            self._sprite_color_buf.write(self._sprite_color_data)
-            self._sprite_color_changed = False
-
-        if self._sprite_sub_tex_changed:
-            self._sprite_sub_tex_buf.orphan()
-            self._sprite_sub_tex_buf.write(self._sprite_sub_tex_data)
-            self._sprite_sub_tex_changed = False
-
-    self._vao1.render(self.program, mode=self.ctx.POINTS, vertices=len(self.sprite_list))
-
-arcade.SpriteList.draw_additive = draw_additive
 
 class MyGame(arcade.Window):
     """ Main application class. """
@@ -236,7 +162,6 @@ class MyGame(arcade.Window):
         self.post_processing = PostProcessingChain(self.ctx, self.get_size(), True)
 
         #Allocate and add effects
-
         #Not sure about this method of allocating a object / weird implicit factory thing
 
         self.bloom = self.post_processing.add_effect(Bloom)
@@ -246,7 +171,7 @@ class MyGame(arcade.Window):
         self.tonemap = self.post_processing.add_effect(Tonemap)
         self.tonemap.threshold = 2.0
 
-        self.chromatic = self.post_processing.add_effect(GoodChromaticAberration)
+        self.chromatic = self.post_processing.add_effect(OkChromaticAberration)
         self.chromatic.axial = 1.0
         self.chromatic.distance_scale = 0.003
 
@@ -278,12 +203,7 @@ class MyGame(arcade.Window):
         self.coin_list.draw()
 
         #Draw coin list again additivly for HDR related reasons
-        self.ctx.enable_only(self.ctx.BLEND)
-        self.ctx.blend_func = self.ctx.BLEND_ADDITIVE
-
-        self.coin_list.draw_additive()
-
-
+        self.coin_list.draw(blend_function=self.ctx.BLEND_ADDITIVE)
 
         #Apply the post processing effect chain to the render target, and apply it to the screen
         self.post_processing.apply_effects(self.render_target.texture, self.ctx.screen)

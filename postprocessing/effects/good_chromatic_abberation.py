@@ -9,7 +9,7 @@ try:
 except:
     pass
 
-class GoodChromaticAberration(PostEffect):
+class OkChromaticAberration(PostEffect):
 
     def __init__(self, context, window_size):
         super().__init__(context, window_size)
@@ -78,7 +78,7 @@ class GoodChromaticAberration(PostEffect):
 
     @axial.setter
     def axial(self, value):
-        self._axial = GoodChromaticAberration.clamp(value, 0.0, 1.0)
+        self._axial = OkChromaticAberration.clamp(value, 0.0, 1.0)
         self.program['u_axial'] = self._axial
 
         #Ensure that axial + transverse do not sum to more than 1.0
@@ -91,7 +91,7 @@ class GoodChromaticAberration(PostEffect):
 
     @transverse.setter
     def transverse(self, value):
-        self._transverse = GoodChromaticAberration.clamp(value, 0.0, 1.0)
+        self._transverse = OkChromaticAberration.clamp(value, 0.0, 1.0)
         #self.program['u_transverse'] = self._transverse
 
         #Ensure that axial + transverse do not sum to more than 1.0
