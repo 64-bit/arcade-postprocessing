@@ -9,13 +9,13 @@ try:
 except:
     pass
 
-class OkChromaticAberration(PostEffect):
+class ChromaticAberration(PostEffect):
 
     def __init__(self, context, window_size):
         super().__init__(context, window_size)
         self.program = context.load_program(
             vertex_shader="postprocessing/core_shaders/fullscreen_quad.vs",
-            fragment_shader="postprocessing/effects/shaders/good_chromatic_abberation.fs",
+            fragment_shader="postprocessing/effects/shaders/chromatic_abberation.fs",
         )
 
         self.program['t_source'] = 0
@@ -78,7 +78,7 @@ class OkChromaticAberration(PostEffect):
 
     @axial.setter
     def axial(self, value):
-        self._axial = OkChromaticAberration.clamp(value, 0.0, 1.0)
+        self._axial = ChromaticAberration.clamp(value, 0.0, 1.0)
         self.program['u_axial'] = self._axial
 
         #Ensure that axial + transverse do not sum to more than 1.0
@@ -91,7 +91,7 @@ class OkChromaticAberration(PostEffect):
 
     @transverse.setter
     def transverse(self, value):
-        self._transverse = OkChromaticAberration.clamp(value, 0.0, 1.0)
+        self._transverse = ChromaticAberration.clamp(value, 0.0, 1.0)
         #self.program['u_transverse'] = self._transverse
 
         #Ensure that axial + transverse do not sum to more than 1.0

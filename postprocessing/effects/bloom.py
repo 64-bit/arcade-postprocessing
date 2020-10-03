@@ -4,6 +4,12 @@ import math
 from postprocessing.post_effect import PostEffect
 from postprocessing.render_target import RenderTarget
 
+try:
+    import imgui
+    import imgui.core
+except:
+    pass
+
 class Bloom(PostEffect):
     def __init__(self, context, window_size):
         super().__init__(context, window_size)
@@ -162,9 +168,15 @@ class Bloom(PostEffect):
 
     @property
     def power(self):
-        return self._power
+        return self._power * 2.0
 
     @power.setter
     def power(self, value):
         self._power = value * 0.5
         self.blur_y_power["u_power"] = value * 0.5
+
+    def show_ui(self):
+        super().show_ui()
+
+        self.power = imgui.slider_float(f'Strength##{self.ui_index}', self.power, 0.0, 5.0)[1]
+        self.threshold = imgui.slider_float(f'Threshold##{self.ui_index}', self.threshold, 0.0, 16.0, power=2.0)[1]
