@@ -25,6 +25,7 @@ from postprocessing.effects.vignette import Vignette
 from postprocessing.effects.greyscale import GreyScale
 from postprocessing.effects.bloom import Bloom
 from postprocessing.effects.tonemap import Tonemap
+from postprocessing.effects.split_tone import SplitTone
 
 
 from typing import Iterable, Iterator
@@ -246,6 +247,8 @@ class MyGame(arcade.Window):
 
         self.greyscale = self.post_processing.add_effect(GreyScale)
         self.greyscale.strength = 0.5
+
+        self.split_tone = self.post_processing.add_effect(SplitTone)
 
         self.vignette = self.post_processing.add_effect(Vignette)
         self.vignette.inner_distance = 0.1
