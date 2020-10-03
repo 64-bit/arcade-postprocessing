@@ -26,6 +26,7 @@ from postprocessing.effects.greyscale import GreyScale
 from postprocessing.effects.bloom import Bloom
 from postprocessing.effects.tonemap import Tonemap
 from postprocessing.effects.split_tone import SplitTone
+from postprocessing.effects.good_chromatic_abberation import GoodChromaticAberration
 
 
 from typing import Iterable, Iterator
@@ -244,6 +245,10 @@ class MyGame(arcade.Window):
 
         self.tonemap = self.post_processing.add_effect(Tonemap)
         self.tonemap.threshold = 2.0
+
+        self.chromatic = self.post_processing.add_effect(GoodChromaticAberration)
+        self.chromatic.axial = 1.0
+        self.chromatic.distance_scale = 0.003
 
         self.greyscale = self.post_processing.add_effect(GreyScale)
         self.greyscale.strength = 0.5
