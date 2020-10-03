@@ -8,6 +8,7 @@ try:
     import imgui.core
 except:
     pass
+
 class GreyScale(PostEffect):
 
     def __init__(self, context, window_size):

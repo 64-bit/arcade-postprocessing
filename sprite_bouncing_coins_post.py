@@ -24,6 +24,7 @@ from postprocessing.render_target import RenderTarget
 from postprocessing.effects.vignette import Vignette
 from postprocessing.effects.greyscale import GreyScale
 from postprocessing.effects.bloom import Bloom
+from postprocessing.effects.tonemap import Tonemap
 
 
 from typing import Iterable, Iterator
@@ -61,7 +62,7 @@ from arcade_imgui import ArcadeGLRenderer
 
 SPRITE_SCALING = 0.5
 
-SCREEN_WIDTH = 832
+SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 632
 SCREEN_TITLE = "Sprite Bouncing Coins"
 
@@ -239,6 +240,9 @@ class MyGame(arcade.Window):
         self.bloom = self.post_processing.add_effect(Bloom)
         self.bloom.threshold = 0.9
         self.bloom.power = 1.0
+
+        self.tonemap = self.post_processing.add_effect(Tonemap)
+        self.tonemap.threshold = 2.0
 
         self.greyscale = self.post_processing.add_effect(GreyScale)
         self.greyscale.strength = 0.5

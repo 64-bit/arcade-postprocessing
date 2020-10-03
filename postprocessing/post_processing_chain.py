@@ -52,7 +52,7 @@ class PostProcessingChain:
 
     def _get_render_target_pair_for_effect(self, effect, first_effect, last_effect, source_texture, destination_framebuffer, is_hdr):
         
-        target_ping_pong = self._hdr_ping_pong_buffer if self.hdr else self._ldr_ping_pong_buffer
+        target_ping_pong = self._hdr_ping_pong_buffer if is_hdr else self._ldr_ping_pong_buffer
         target_ping_pong.flip_buffers()
 
         target_pair = target_ping_pong
@@ -72,7 +72,7 @@ class PostProcessingChain:
         pass
 
     def _passthrough(self, source_texture, destination_framebuffer):
-        source_texture.texture.use(0)
+        source_texture.use(0)
         destination_framebuffer.use()
         RenderTarget.fullscreen_quad.render(RenderTarget.blit_program)
 

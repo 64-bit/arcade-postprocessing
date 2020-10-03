@@ -1,6 +1,11 @@
 import arcade
 from postprocessing.post_effect import PostEffect
 
+try:
+    import imgui
+    import imgui.core
+except:
+    pass
 
 class Vignette(PostEffect):
 
@@ -48,3 +53,13 @@ class Vignette(PostEffect):
     def color(self, value):
         self._color = value
         self.program["u_color"] = value
+
+    def show_ui(self):
+        super().show_ui()
+
+        self.inner_distance = imgui.slider_float(f'Start Distance##{self.ui_index}', self.inner_distance, -1.0, 3.0)[1]
+        self.outer_distance = imgui.slider_float(f'End Distance##{self.ui_index}', self.outer_distance, -1.0, 3.0)[1]
+        #self.strength = imgui.slider_float(f'Strength##{self.ui_index}', self.strength, 0.0, 2.0)[1]
+        #self.scale = imgui.slider_float2(f'Scale##{self.ui_index}', self._scale[0], self._scale[1], 0.0,4.0)[1]
+
+        self.color = imgui.color_edit4(f'Color##{self.ui_index}', *self.color)[1]
