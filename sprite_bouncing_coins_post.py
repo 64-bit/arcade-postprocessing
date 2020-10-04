@@ -27,6 +27,7 @@ from postprocessing.effects.bloom import Bloom
 from postprocessing.effects.tonemap import Tonemap
 from postprocessing.effects.split_tone import SplitTone
 from postprocessing.effects.chromatic_abberation import ChromaticAberration
+from postprocessing.effects.template import Tempalte
 
 
 from typing import Iterable, Iterator
@@ -182,6 +183,8 @@ class MyGame(arcade.Window):
 
         self.vignette = self.post_processing.add_effect(Vignette)
         self.vignette.inner_distance = 0.1
+
+        self.template = self.post_processing.add_effect(Tempalte)
 
         size = self.get_size()
         self.render_target = RenderTarget(self.ctx, size, 'f2')
