@@ -4,6 +4,7 @@ import math
 from postprocessing.post_effect import PostEffect
 from postprocessing.render_target import RenderTarget
 from postprocessing.ping_pong_buffer import PingPongBuffer
+from pyglet import gl
 
 try:
     import imgui
@@ -28,10 +29,12 @@ class Bloom(PostEffect):
         self.set_universal_shader_args(self.extract_blur_x)
         self.set_universal_shader_args(self.blur_y_power)
 
+        self.blur_y_power['t_last'] = 1
+
         self.load_apply_bloom(context)
 
         self.chain = []
-        self._desired_chain = 2
+        self._desired_chain = 5
 
         self.threshold = 1.0
         self.power = 1.0
@@ -67,6 +70,10 @@ class Bloom(PostEffect):
     def allocate_chain(self, remaining, size):
         if remaining == 0:
             return
+        
+        if size[0] == 0 or size[1] == 0:
+            return
+
         size = (size[0] // 2 , size[1] // 2)
         ping_pong = PingPongBuffer(self.context, size, texture_format='f2')#TODO: Is HDR
         self.chain.append(ping_pong)
@@ -81,7 +88,7 @@ class Bloom(PostEffect):
 
         self.apply_bloom["t_source"] = 0
         self.apply_bloom["t_half"] = 1
-        self.apply_bloom["t_quater"] = 2
+        #self.apply_bloom["t_quater"] = 2
 
     def resize(self, window_size):
         super(Bloom, self).resize(window_size)
@@ -116,12 +123,21 @@ class Bloom(PostEffect):
 
         # run ping pong back and forth to blur the light buffer
         for ping_pong in self.chain:
-            self.apply_blur(ping_pong)
+            self.apply_blur_down(ping_pong)
 
-        # Apply half and quater to the main image as bloom
+        #clear texture 1 so that the bottom of the chain reads from a unbound black texture
+        gl.glActiveTexture(gl.GL_TEXTURE0 + 1)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+       
+        #run up and down the chain
+        last = None
+        for ping_pong in reversed(self.chain):
+            self.apply_blur_up(ping_pong, last)
+            last = ping_pong
+
+        # Apply top of chain to main image, as it has all the lower levels added already
         render_target_pair.bind(0)
         self.chain[0].texture.use(1)
-        self.chain[1].texture.use(2)
 
         PostEffect.fullscreen_quad.render(self.apply_bloom)
 
@@ -137,6 +153,40 @@ class Bloom(PostEffect):
         ping_pong.bind(0)
         PostEffect.fullscreen_quad.render(self.extract_blur_x)
         ping_pong.flip_buffers()
+
+        # blur pong back to ping
+        ping_pong.bind(0)
+        PostEffect.fullscreen_quad.render(self.blur_y_power)
+        ping_pong.flip_buffers()
+
+        pass
+
+    def apply_blur_down(self, ping_pong):
+
+        # Set arugments for pass size
+        texel_uv_size = (1.0 / ping_pong.size[0], 1.0 / ping_pong.size[1])
+
+        self.extract_blur_x["u_texel_size"] = texel_uv_size
+        self.blur_y_power["u_texel_size"] = texel_uv_size
+
+        # blur ping onto pong
+        ping_pong.bind(0)
+        PostEffect.fullscreen_quad.render(self.extract_blur_x)
+        ping_pong.flip_buffers()
+
+        pass
+
+    def apply_blur_up(self, ping_pong, last):
+
+        # Set arugments for pass size
+        texel_uv_size = (1.0 / ping_pong.size[0], 1.0 / ping_pong.size[1])
+
+        self.extract_blur_x["u_texel_size"] = texel_uv_size
+        self.blur_y_power["u_texel_size"] = texel_uv_size
+
+        #bind last
+        if last is not None:
+            last.texture.use(1)
 
         # blur pong back to ping
         ping_pong.bind(0)

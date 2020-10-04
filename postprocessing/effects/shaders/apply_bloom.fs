@@ -16,7 +16,7 @@ void main()
     vec3 quater_bloom = texture(t_quater, v_uv).rgb; 
 
     finalColor.rgb += half_bloom;
-    finalColor.rgb += quater_bloom;
+    //finalColor.rgb += quater_bloom;
 
     out_color = finalColor;
 }

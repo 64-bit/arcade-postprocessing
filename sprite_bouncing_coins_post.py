@@ -144,6 +144,7 @@ class MyGame(arcade.Window):
         # Create coins
         for i in range(10):
             coin = arcade.Sprite(":resources:images/items/coinGold.png", 0.25)
+            coin.scale = 1
             coin.center_x = random.randrange(100, 700)
             coin.center_y = random.randrange(100, 500)
             while coin.change_x == 0 and coin.change_y == 0:
@@ -171,7 +172,7 @@ class MyGame(arcade.Window):
 
         self.tonemap = self.post_processing.add_effect(Tonemap)
         self.tonemap.threshold = 2.0
-
+        '''
         self.chromatic = self.post_processing.add_effect(ChromaticAberration)
         self.chromatic.axial = 1.0
         self.chromatic.distance_scale = 0.003
@@ -183,9 +184,9 @@ class MyGame(arcade.Window):
 
         self.vignette = self.post_processing.add_effect(Vignette)
         self.vignette.inner_distance = 0.1
-
+        '''
         self.template = self.post_processing.add_effect(Tempalte)
-
+        
         size = self.get_size()
         self.render_target = RenderTarget(self.ctx, size, 'f2')
 
@@ -206,6 +207,9 @@ class MyGame(arcade.Window):
         self.coin_list.draw()
 
         #Draw coin list again additivly for HDR related reasons
+        self.coin_list.draw(blend_function=self.ctx.BLEND_ADDITIVE)
+        self.coin_list.draw(blend_function=self.ctx.BLEND_ADDITIVE)
+        self.coin_list.draw(blend_function=self.ctx.BLEND_ADDITIVE)
         self.coin_list.draw(blend_function=self.ctx.BLEND_ADDITIVE)
 
         #Apply the post processing effect chain to the render target, and apply it to the screen

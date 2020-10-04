@@ -1,7 +1,7 @@
 #version 330
 
 uniform sampler2D t_source;
-
+uniform sampler2D t_last;
 const int samples = 11;
 const int midpoint = samples/2;
 
@@ -34,10 +34,13 @@ void main()
     }
 
     //Divide by weight sum to ensure no gain or loss of energy
-    final_color /= u_weight_sum;
+    final_color /= u_weight_sum; //TODO: Reciprocal on CPU
 
     //Apply power
     final_color *= u_power;
+
+    //Apply post processing from last step
+    final_color += texture(t_last, v_uv).rgb;
 
     out_color = vec4(final_color, 1.0);
 }
