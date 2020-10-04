@@ -3,6 +3,7 @@ import math
 
 from postprocessing.post_effect import PostEffect
 from postprocessing.render_target import RenderTarget
+from postprocessing.ping_pong_buffer import PingPongBuffer
 
 try:
     import imgui
@@ -16,12 +17,12 @@ class Bloom(PostEffect):
         
         self.extract_blur_x = context.load_program(
             vertex_shader="postprocessing/core_shaders/fullscreen_quad.vs",
-            fragment_shader="postprocessing/effects/shaders/extract_blur_x.fs",
+            fragment_shader="postprocessing/effects/shaders/extract_blur_x.fs"
         )
 
         self.blur_y_power = context.load_program(
             vertex_shader="postprocessing/core_shaders/fullscreen_quad.vs",
-            fragment_shader="postprocessing/effects/shaders/blur_y_power.fs",
+            fragment_shader="postprocessing/effects/shaders/blur_y_power.fs"
         )
 
         self.set_universal_shader_args(self.extract_blur_x)
@@ -29,23 +30,14 @@ class Bloom(PostEffect):
 
         self.load_apply_bloom(context)
 
+        self.chain = []
+        self._desired_chain = 2
+
         self.threshold = 1.0
         self.power = 1.0
 
         # Allocate the downscaled render targets and blur buffers
-        self.rt_half_ping = RenderTarget(
-            context, self.get_half_rt_size(window_size), "f2"
-        )
-        self.rt_half_pong = RenderTarget(
-            context, self.get_half_rt_size(window_size), "f2"
-        )
-
-        self.rt_quater_ping = RenderTarget(
-            context, self.get_quater_rt_size(window_size), "f2"
-        )
-        self.rt_quater_pong = RenderTarget(
-            context, self.get_quater_rt_size(window_size), "f2"
-        )
+        self.allocate_whole_chain()
 
     def set_universal_shader_args(self, program):
         program["t_source"] = 0
@@ -57,6 +49,28 @@ class Bloom(PostEffect):
 
         program["u_weights"] = weights
         program["u_weight_sum"] = weights_sum
+
+
+    def adjust_chain_size(self, size):
+        if len(self.chain) == size:
+            return
+        if size < len(self.chain):
+            self.chain = self.chain[0:size]
+        else:
+            current_min_size = self.chain[-1].size
+            self.allocate_chain(size-len(self.chain), current_min_size)
+
+    def allocate_whole_chain(self):
+        self.chain = []
+        self.allocate_chain(self._desired_chain, self.window_size)
+
+    def allocate_chain(self, remaining, size):
+        if remaining == 0:
+            return
+        size = (size[0] // 2 , size[1] // 2)
+        ping_pong = PingPongBuffer(self.context, size, texture_format='f2')#TODO: Is HDR
+        self.chain.append(ping_pong)
+        self.allocate_chain(remaining-1, size)
 
     def load_apply_bloom(self, context):
 
@@ -71,24 +85,7 @@ class Bloom(PostEffect):
 
     def resize(self, window_size):
         super(Bloom, self).resize(window_size)
-
-        self.rt_half_ping.resize(self.get_half_rt_size(window_size))
-        self.rt_half_pong.resize(self.get_half_rt_size(window_size))
-
-        self.rt_quater_ping.resize(self.get_quater_rt_size(window_size))
-        self.rt_quater_pong.resize(self.get_quater_rt_size(window_size))
-
-    def get_half_rt_size(self, window_size):
-        return (
-            int(math.ceil(window_size[0] / 2.0)),
-            int(math.ceil(window_size[1]) / 2.0),
-        )
-
-    def get_quater_rt_size(self, window_size):
-        return (
-            int(math.ceil(window_size[0] / 4.0)),
-            int(math.ceil(window_size[1]) / 4.0),
-        )
+        self.allocate_whole_chain()
 
     def get_blur_coefficents(self, count):
         midpoint = math.floor(count / 2)
@@ -118,44 +115,50 @@ class Bloom(PostEffect):
         self.downsample_to_ping(render_target_pair.texture)
 
         # run ping pong back and forth to blur the light buffer
-        self.apply_blur(self.rt_half_ping, self.rt_half_pong)
-        self.apply_blur(self.rt_quater_ping, self.rt_quater_pong)
+        for ping_pong in self.chain:
+            self.apply_blur(ping_pong)
 
         # Apply half and quater to the main image as bloom
         render_target_pair.bind(0)
-        self.rt_half_ping.bind_as_texture(1)
-        self.rt_quater_ping.bind_as_texture(2)
+        self.chain[0].texture.use(1)
+        self.chain[1].texture.use(2)
+
         PostEffect.fullscreen_quad.render(self.apply_bloom)
 
-    def apply_blur(self, ping, pong):
+    def apply_blur(self, ping_pong):
 
         # Set arugments for pass size
-        texel_uv_size = (1.0 / ping.size[0], 1.0 / ping.size[1])
+        texel_uv_size = (1.0 / ping_pong.size[0], 1.0 / ping_pong.size[1])
 
         self.extract_blur_x["u_texel_size"] = texel_uv_size
         self.blur_y_power["u_texel_size"] = texel_uv_size
 
         # blur ping onto pong
-        pong.bind_as_framebuffer()
-        ping.bind_as_texture(0)
+        ping_pong.bind(0)
         PostEffect.fullscreen_quad.render(self.extract_blur_x)
+        ping_pong.flip_buffers()
 
         # blur pong back to ping
-        ping.bind_as_framebuffer()
-        pong.bind_as_texture(0)
+        ping_pong.bind(0)
         PostEffect.fullscreen_quad.render(self.blur_y_power)
+        ping_pong.flip_buffers()
+
         pass
 
-    def downsample_to_ping(self, source_target):
-        self.rt_half_ping.bind_as_framebuffer()
+    def downsample_to_ping(self, source_texture):
 
-        #this can be a texture
-        #TODO: find a way to clean this up
-        source_target.use(0)
-        RenderTarget.fullscreen_quad.render(RenderTarget.blit_program)
+        program = RenderTarget.blit_program #TODO:Set to extract
 
-        self.rt_quater_ping.bind_as_framebuffer()
-        self.rt_half_ping.blit()
+        for ping_pong in self.chain:
+
+            ping_pong.framebuffer.use()
+            source_texture.use(0)
+
+            RenderTarget.fullscreen_quad.render(program)
+            ping_pong.flip_buffers()
+            source_texture = ping_pong.texture
+
+            program = RenderTarget.blit_program
 
     @property
     def threshold(self):

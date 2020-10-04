@@ -27,8 +27,11 @@ void main()
     {
         vec3 sample = texture(t_source, sample_pos).xyz;
 
-        //clamp at lower bound of zero if below threshold, gradually ramp into bloom at edge
-        sample = max(vec3(0.0), sample - u_threshold);
+        float brightness = max(max(sample.x, sample.y), sample.z);
+        float knee = (brightness - u_threshold) / brightness;
+        knee = clamp(knee, 0.0, 1.0);
+        sample *= knee;
+
         //Apply guassian weight
         final_color += sample * u_weights[i];
         //Advance sample position
